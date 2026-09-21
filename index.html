@@ -1,1 +1,420 @@
 
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>StarX - 3D Stair Runner</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { overflow: hidden; background: #050510; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        /* FULLSCREEN OVERLAYS */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, rgba(5, 5, 20, 0.96), rgba(10, 10, 35, 0.98));
+            backdrop-filter: blur(10px); z-index: 10; color: #fff;
+        }
+
+        .hidden { display: none !important; }
+
+        /* BRANDING - StarX */
+        .brand-title {
+            font-size: 52px; font-weight: 900;
+            background: linear-gradient(45deg, #00d2d3, #ff9ff3, #feca57);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: 3px; text-shadow: 0 0 30px rgba(0, 210, 211, 0.5);
+            margin-bottom: 5px; text-transform: uppercase;
+        }
+
+        .brand-subtitle { color: #8899a6; font-size: 15px; margin-bottom: 25px; letter-spacing: 1px; }
+
+        /* DASHBOARD STATS CARD ON HOME SCREEN */
+        .dashboard-card {
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 15px 30px; border-radius: 20px; margin-bottom: 30px;
+            display: flex; gap: 25px; text-align: center;
+        }
+        .dash-item div:first-child { font-size: 13px; color: #aaa; text-transform: uppercase; }
+        .dash-item div:last-child { font-size: 22px; font-weight: bold; color: #feca57; }
+
+        /* GREEN START BUTTON */
+        .btn-start {
+            padding: 18px 50px; font-size: 24px; font-weight: 800;
+            background: linear-gradient(45deg, #10ac84, #1dd1a1);
+            color: #ffffff; border: none; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 10px 30px rgba(29, 209, 161, 0.5);
+            transition: all 0.2s ease-in-out; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-start:active { transform: scale(0.93); }
+
+        /* AD OVERLAY SCREEN */
+        #ad-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95); z-index: 20;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: #fff; font-size: 20px;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.2);
+            border-top-color: #1dd1a1; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* IN-GAME HUD */
+        #hud {
+            position: absolute; top: 20px; left: 0; width: 100%;
+            display: flex; justify-content: space-around; z-index: 5; color: #fff; font-size: 18px; font-weight: bold;
+        }
+        .hud-card {
+            background: rgba(255, 255, 255, 0.12); padding: 8px 18px;
+            border-radius: 20px; border: 1px solid rgba(255,255,255,0.25);
+            backdrop-filter: blur(5px);
+        }
+
+        /* GAME OVER PANEL */
+        .panel {
+            background: rgba(20, 20, 35, 0.95); border: 2px solid #54a0ff;
+            padding: 30px; border-radius: 25px; text-align: center;
+            box-shadow: 0 0 30px rgba(84, 160, 255, 0.4); max-width: 340px; width: 90%;
+        }
+        .panel h2 { font-size: 28px; color: #ff4757; margin-bottom: 15px; }
+        .stats { margin: 15px 0; text-align: left; font-size: 17px; line-height: 2; color: #c8d6e5; }
+        
+        .btn-group { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+        .btn-action {
+            padding: 12px 22px; font-size: 16px; font-weight: bold;
+            border: none; border-radius: 30px; cursor: pointer; color: #fff;
+        }
+        .btn-retry { background: linear-gradient(45deg, #10ac84, #1dd1a1); }
+        .btn-exit { background: linear-gradient(45deg, #ee5253, #ff6b6b); }
+    </style>
+
+    <!-- Three.js 3D Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Unity Ads Web SDK Script -->
+    <script src="https://unityads.unity3d.com/js/unityads.js"></script>
+</head>
+<body>
+
+    <!-- 1. HOME SCREEN -->
+    <div id="home-screen" class="overlay">
+        <div class="brand-title">StarX</div>
+        <div class="brand-subtitle">Endless 3D Staircase Challenge</div>
+
+        <div class="dashboard-card">
+            <div class="dash-item">
+                <div>Total Coins</div>
+                <div>🪙 <span id="total-coins">0</span></div>
+            </div>
+            <div class="dash-item">
+                <div>Best Level</div>
+                <div>🏆 <span id="best-level">1</span></div>
+            </div>
+        </div>
+
+        <button class="btn-start" onclick="handleStartWithUnityAd()">START GAME ➔</button>
+    </div>
+
+    <!-- 2. UNITY AD LOADING OVERLAY -->
+    <div id="ad-overlay" class="hidden">
+        <div class="spinner"></div>
+        <div>Loading Unity Ad...</div>
+    </div>
+
+    <!-- 3. IN-GAME HUD -->
+    <div id="hud" class="hidden">
+        <div class="hud-card">⏱️ <span id="timer">0s</span></div>
+        <div class="hud-card">🪙 <span id="coins">0</span></div>
+        <div class="hud-card">🏆 Lvl <span id="level">1</span></div>
+    </div>
+
+    <!-- 4. GAME OVER SCREEN -->
+    <div id="gameover-screen" class="overlay hidden">
+        <div class="panel">
+            <h2>GAME OVER!</h2>
+            <div class="stats">
+                <p>⏱️ Time Lasted: <b id="final-time" style="color:#fff;">0s</b></p>
+                <p>🪙 Coins Earned: <b id="final-coins" style="color:#feca57;">0</b></p>
+                <p>🏆 Level Reached: <b id="final-level" style="color:#54a0ff;">1</b></p>
+            </div>
+            <div class="btn-group">
+                <button class="btn-action btn-retry" onclick="handleRetryWithUnityAd()">RETRY 🔄</button>
+                <button class="btn-action btn-exit" onclick="exitToHome()">EXIT ✖</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- UNITY ADS CONFIGURATION ---
+        const UNITY_GAME_ID = "YOUR_UNITY_GAME_ID"; // अपनी यूनिटी गेम आईडी यहाँ बदलें
+        const AD_PLACEMENT_ID = "video"; // Default Interstitial Placement ID
+        let isUnityAdReady = false;
+
+        // Initialize Unity Ads
+        function initUnityAds() {
+            if (window.UnityAds) {
+                UnityAds.init(UNITY_GAME_ID, true, {
+                    onSuccess: function() {
+                        console.log("Unity Ads Initialized Successfully!");
+                        isUnityAdReady = true;
+                    },
+                    onError: function(error) {
+                        console.log("Unity Ads Initialization Failed:", error);
+                    }
+                });
+            }
+        }
+
+        function showUnityAd(callback) {
+            const adOverlay = document.getElementById('ad-overlay');
+            adOverlay.classList.remove('hidden');
+
+            if (window.UnityAds && isUnityAdReady) {
+                UnityAds.show(AD_PLACEMENT_ID, {
+                    onComplete: function() {
+                        adOverlay.classList.add('hidden');
+                        callback();
+                    },
+                    onError: function(err) {
+                        console.log("Ad show error, continuing game:", err);
+                        adOverlay.classList.add('hidden');
+                        callback();
+                    }
+                });
+            } else {
+                // Fallback Timer simulation if Ad SDK is loading or in offline mode
+                setTimeout(() => {
+                    adOverlay.classList.add('hidden');
+                    callback();
+                }, 2000);
+            }
+        }
+
+        // --- GAME LOGIC ---
+        let scene, camera, renderer, playerGroup;
+        let platforms = [], coinsList = [];
+        let isGameRunning = false;
+        
+        let timer = 0, timerInterval;
+        let coins = 0, level = 1, nextZ = 0;
+        let playerVelY = 0, isGrounded = true;
+        const gravity = -0.012;
+        const keys = {};
+
+        let totalCoinsSaved = parseInt(localStorage.getItem('starx_coins')) || 0;
+        let bestLevelSaved = parseInt(localStorage.getItem('starx_best_level')) || 1;
+
+        function updateHomeScreenStats() {
+            document.getElementById('total-coins').innerText = totalCoinsSaved;
+            document.getElementById('best-level').innerText = bestLevelSaved;
+        }
+
+        function initScene() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050510, 0.03);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+
+            playerGroup = new THREE.Group();
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.4, 0.4, 1, 16),
+                new THREE.MeshStandardMaterial({ color: 0x00d2d3 })
+            );
+            body.position.y = 0.5;
+            playerGroup.add(body);
+            scene.add(playerGroup);
+
+            window.addEventListener('keydown', e => keys[e.code] = true);
+            window.addEventListener('keyup', e => keys[e.code] = false);
+            window.addEventListener('resize', onWindowResize);
+
+            updateHomeScreenStats();
+            initUnityAds();
+        }
+
+        function handleStartWithUnityAd() {
+            showUnityAd(() => {
+                document.getElementById('home-screen').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                startActualGame();
+            });
+        }
+
+        function handleRetryWithUnityAd() {
+            document.getElementById('gameover-screen').classList.add('hidden');
+            showUnityAd(() => {
+                document.getElementById('hud').classList.remove('hidden');
+                startActualGame();
+            });
+        }
+
+        function createPlatform(zPos) {
+            const width = 3 + Math.random() * 2;
+            const geo = new THREE.BoxGeometry(width, 0.4, 2);
+            const mat = new THREE.MeshStandardMaterial({ color: (zPos / 2) % 2 === 0 ? 0x2e86de : 0x54a0ff });
+            const platform = new THREE.Mesh(geo, mat);
+            
+            const xOffset = (Math.random() - 0.5) * 3;
+            platform.position.set(xOffset, zPos * -0.15, -zPos);
+            scene.add(platform);
+            platforms.push(platform);
+
+            if (Math.random() > 0.4 && zPos > 4) {
+                const coin = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.3, 0.3, 0.08, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xfeca57, metalness: 0.8 })
+                );
+                coin.rotation.x = Math.PI / 2;
+                coin.position.set(xOffset, (zPos * -0.15) + 0.8, -zPos);
+                scene.add(coin);
+                coinsList.push(coin);
+            }
+        }
+
+        function startActualGame() {
+            resetGame();
+            isGameRunning = true;
+            
+            timerInterval = setInterval(() => {
+                if (isGameRunning) {
+                    timer++;
+                    document.getElementById('timer').innerText = timer + 's';
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            platforms.forEach(p => scene.remove(p));
+            coinsList.forEach(c => scene.remove(c));
+            platforms = []; coinsList = [];
+
+            playerGroup.position.set(0, 0, 0);
+            playerVelY = 0; timer = 0; coins = 0; level = 1; nextZ = 0;
+            
+            document.getElementById('timer').innerText = '0s';
+            document.getElementById('coins').innerText = '0';
+            document.getElementById('level').innerText = '1';
+
+            for (let i = 0; i < 25; i++) {
+                createPlatform(i * 2);
+                nextZ = i * 2;
+            }
+        }
+
+        function triggerGameOver() {
+            isGameRunning = false;
+            clearInterval(timerInterval);
+            
+            totalCoinsSaved += coins;
+            if (level > bestLevelSaved) bestLevelSaved = level;
+            
+            localStorage.setItem('starx_coins', totalCoinsSaved);
+            localStorage.setItem('starx_best_level', bestLevelSaved);
+
+            document.getElementById('final-time').innerText = timer + 's';
+            document.getElementById('final-coins').innerText = coins;
+            document.getElementById('final-level').innerText = level;
+            
+            document.getElementById('gameover-screen').classList.remove('hidden');
+        }
+
+        function exitToHome() {
+            document.getElementById('gameover-screen').classList.add('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            updateHomeScreenStats();
+            document.getElementById('home-screen').classList.remove('hidden');
+            resetGame();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isGameRunning) {
+                const speed = 0.12;
+                if (keys['KeyW'] || keys['ArrowUp']) playerGroup.position.z -= speed;
+                if (keys['KeyS'] || keys['ArrowDown']) playerGroup.position.z += speed;
+                if (keys['KeyA'] || keys['ArrowLeft']) playerGroup.position.x -= speed;
+                if (keys['KeyD'] || keys['ArrowRight']) playerGroup.position.x += speed;
+
+                if (keys['Space'] && isGrounded) {
+                    playerVelY = 0.22;
+                    isGrounded = false;
+                }
+
+                playerVelY += gravity;
+                playerGroup.position.y += playerVelY;
+
+                platforms.forEach(p => {
+                    if (Math.abs(playerGroup.position.z - p.position.z) < 1.0 &&
+                        Math.abs(playerGroup.position.x - p.position.x) < 1.8 &&
+                        playerGroup.position.y <= p.position.y + 0.5 &&
+                        playerGroup.position.y >= p.position.y - 0.2) {
+                        
+                        playerGroup.position.y = p.position.y + 0.5;
+                        playerVelY = 0;
+                        isGrounded = true;
+                    }
+                });
+
+                coinsList.forEach((c, idx) => {
+                    c.rotation.z += 0.05;
+                    if (playerGroup.position.distanceTo(c.position) < 0.8) {
+                        scene.remove(c);
+                        coinsList.splice(idx, 1);
+                        coins++;
+                        document.getElementById('coins').innerText = coins;
+                    }
+                });
+
+                const distance = Math.floor(-playerGroup.position.z);
+                level = Math.floor(distance / 40) + 1;
+                document.getElementById('level').innerText = level;
+
+                if (playerGroup.position.y < -15) {
+                    triggerGameOver();
+                }
+
+                if (-playerGroup.position.z > nextZ - 30) {
+                    nextZ += 2;
+                    createPlatform(nextZ);
+                }
+
+                if (platforms.length > 40) {
+                    scene.remove(platforms.shift());
+                }
+
+                camera.position.x = playerGroup.position.x;
+                camera.position.y = playerGroup.position.y + 3.5;
+                camera.position.z = playerGroup.position.z + 6;
+                camera.lookAt(playerGroup.position.x, playerGroup.position.y, playerGroup.position.z - 2);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        initScene();
+        animate();
+    </script>
+</body>
+</html>
